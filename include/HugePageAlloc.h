@@ -13,7 +13,14 @@ inline void *hugePageAlloc(size_t size) {
   void *res = mmap(NULL, size, PROT_READ | PROT_WRITE,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
   if (res == MAP_FAILED) {
-    Debug::notifyError("%s mmap failed!\n", getIP());
+    Debug::notifyError("%s hugepage mmap failed, falling back to regular mmap\n",
+                       getIP());
+    res = mmap(NULL, size, PROT_READ | PROT_WRITE,
+               MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (res == MAP_FAILED) {
+      Debug::notifyError("%s regular mmap also failed! Aborting.\n", getIP());
+      exit(1);
+    }
   }
   numa_set_localalloc();
   return res;
