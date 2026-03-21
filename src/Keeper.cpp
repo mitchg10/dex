@@ -85,6 +85,23 @@ void Keeper::serverEnter() {
   }
 }
 
+/* March 21, 2026
+Phase A experiments fail because memory nodes (node-1, node-2, node-3) cannot register themselves in memcached. Every node
+runs the same newbench binary; role (compute vs memory) is determined by which node wins the memcached serverNum INCR race.
+The failure is not a network issue — binary-protocol INCR from node-1 works fine in isolation. The problem only appears when
+node-0's newbench is running concurrently. After serverEnter() succeeds (node-0 claims nodeID 0), Keeper::serverConnect() spins in a tight infinite polling
+loop with no sleep, hammering memcached with memcached_get("serverNum") at potentially millions of QPS. Under this load, new
+TCP connections from node-1/2/3 (needed for their memcached_increment("serverNum")) exceed libmemcached's default connect
+timeout (~4 s), returning MEMCACHED_TIMEOUT. After ~24 retries × ~5 s = ~120 s, the orchestrator kills the memory nodes when
+node-0's process exits.
+
+Evidence:
+- Reproducer: start node-0's newbench, then start node-1's newbench concurrently → node-1 gets MEMCACHED_TIMEOUT on every
+INCR
+- Running node-1's newbench alone (or testing binary-protocol INCR via Python) succeeds immediately
+- Memory node logs show 24 repeating Server 0 Counld't incr value and get ID: A TIMEOUT OCCURRED, retry... lines before the
+process is killed
+*/
 void Keeper::serverConnect() {
   size_t l;
   uint32_t flags;
@@ -96,6 +113,7 @@ void Keeper::serverConnect() {
     if (rc != MEMCACHED_SUCCESS) {
       fprintf(stderr, "Server %d Counld't get serverNum: %s, retry\n", myNodeID,
               memcached_strerror(memc, rc));
+      usleep(1000);   // ADDED (1 ms throttle)
       continue;
     }
     uint32_t serverNum = atoi(serverNumStr);
@@ -109,6 +127,7 @@ void Keeper::serverConnect() {
       }
     }
     curServer = serverNum;
+    usleep(1000);   // ADDED (1 ms throttle on success too)
   }
 }
 
