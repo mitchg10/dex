@@ -139,7 +139,7 @@ char *Keeper::memGet(const char *key, uint32_t klen, size_t *v_size,
     if (rc == MEMCACHED_SUCCESS) {
       break;
     }
-    usleep(400 * myNodeID);
+    usleep(400 + 400 * myNodeID); // Changed March 21, 2026 to ensure sleep per retry
     auto end = std::chrono::high_resolution_clock::now(); // get end time
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(
         end - start); // calculate duration in microseconds
