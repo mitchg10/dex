@@ -1011,6 +1011,8 @@ int main(int argc, char *argv[]) {
         th[i].join();
       }
 
+      tree->print_report();
+
       for (int i = 0; i < kThreadCount; ++i) {
         total_throughput += total_tp[i];
       }
@@ -1093,6 +1095,31 @@ int main(int argc, char *argv[]) {
             << static_cast<double>(rdma_read_size + rdma_write_size) /
                    execute_op.load()
             << std::endl;
+
+  if (node_id == 0) {
+    double tp_max_mops      = total_cluster_tp / 1e6;
+    double tp_straggler_mops = straggler_cluster_tp / 1e6;
+    uint64_t exec_ops       = execute_op.load();
+    double rd_per_op  = exec_ops > 0 ? static_cast<double>(rdma_read_num)  / exec_ops : 0;
+    double wr_per_op  = exec_ops > 0 ? static_cast<double>(rdma_write_num) / exec_ops : 0;
+    double cas_per_op = exec_ops > 0 ? static_cast<double>(rdma_cas_num)   / exec_ops : 0;
+    double rpc_per_op = exec_ops > 0 ? static_cast<double>(rdma_rpc_num)   / exec_ops : 0;
+    double total_per_op = rd_per_op + wr_per_op + cas_per_op + rpc_per_op;
+    double rd_bytes_per_op  = exec_ops > 0 ? static_cast<double>(rdma_read_size)  / exec_ops : 0;
+    double wr_bytes_per_op  = exec_ops > 0 ? static_cast<double>(rdma_write_size) / exec_ops : 0;
+    std::cout << "=== RESULT SUMMARY ===" << std::endl;
+    std::cout << "throughput_max_mops = "       << tp_max_mops       << std::endl;
+    std::cout << "throughput_straggler_mops = " << tp_straggler_mops << std::endl;
+    std::cout << "execute_ops = "               << exec_ops          << std::endl;
+    std::cout << "rdma_read_per_op = "          << rd_per_op         << std::endl;
+    std::cout << "rdma_write_per_op = "         << wr_per_op         << std::endl;
+    std::cout << "rdma_cas_per_op = "           << cas_per_op        << std::endl;
+    std::cout << "rdma_rpc_per_op = "           << rpc_per_op        << std::endl;
+    std::cout << "rdma_total_per_op = "         << total_per_op      << std::endl;
+    std::cout << "rdma_read_bytes_per_op = "    << rd_bytes_per_op   << std::endl;
+    std::cout << "rdma_write_bytes_per_op = "   << wr_bytes_per_op   << std::endl;
+    std::cout << "=== END SUMMARY ===" << std::endl;
+  }
 
   if (auto_tune) {
     std::cout << "------------------------------------------" << std::endl;

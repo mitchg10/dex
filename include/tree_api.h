@@ -36,6 +36,7 @@ public:
   virtual double get_rpc_ratio() { return 0; }
 
   virtual void get_statistic() {}
+  virtual void print_report() {}
 
   // Do most initialization work here
   tree_api *create_tree() { return nullptr; }

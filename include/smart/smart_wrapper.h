@@ -130,6 +130,69 @@ public:
               << std::endl;
   }
 
+  void print_report() {
+    // --- Latency percentiles ---
+    // latency[thread][coro][bucket], bucket = ns/100 (each bucket = 100 ns)
+    // Convert to microseconds: bucket * 0.1
+    uint64_t hist[LATENCY_WINDOWS] = {};
+    uint64_t total_samples = 0;
+    for (int t = 0; t < MAX_APP_THREAD; ++t) {
+      for (int c = 0; c < MAX_CORO_NUM; ++c) {
+        for (int b = 0; b < LATENCY_WINDOWS; ++b) {
+          uint64_t v = my_tree->latency[t][c][b];
+          hist[b] += v;
+          total_samples += v;
+        }
+      }
+    }
+    auto percentile_us = [&](double pct) -> double {
+      if (total_samples == 0) return 0.0;
+      uint64_t target = static_cast<uint64_t>(total_samples * pct);
+      uint64_t cum = 0;
+      for (int b = 0; b < LATENCY_WINDOWS; ++b) {
+        cum += hist[b];
+        if (cum >= target) return b * 0.1;
+      }
+      return (LATENCY_WINDOWS - 1) * 0.1;
+    };
+    std::cout << "Latency p50 = " << percentile_us(0.50) << " us" << std::endl;
+    std::cout << "Latency p95 = " << percentile_us(0.95) << " us" << std::endl;
+    std::cout << "Latency p99 = " << percentile_us(0.99) << " us" << std::endl;
+    std::cout << "Latency p99.9 = " << percentile_us(0.999) << " us" << std::endl;
+
+    // --- Cache stats ---
+    uint64_t total_hit = 0, total_miss = 0;
+    for (int i = 0; i < MAX_APP_THREAD; ++i) {
+      total_hit  += my_tree->cache_hit[i][0];
+      total_miss += my_tree->cache_miss[i][0];
+    }
+    double hit_rate = (total_hit + total_miss > 0)
+                      ? static_cast<double>(total_hit) / (total_hit + total_miss)
+                      : 0.0;
+    std::cout << "Cache hit rate = " << hit_rate << std::endl;
+
+    // --- Lock / handover contention stats ---
+    uint64_t total_write_op = 0, total_write_ho = 0;
+    uint64_t total_read_op  = 0, total_read_ho  = 0;
+    uint64_t total_lock_fail = 0;
+    for (int i = 0; i < MAX_APP_THREAD; ++i) {
+      total_write_op   += my_tree->try_write_op[i][0];
+      total_write_ho   += my_tree->write_handover_num[i][0];
+      total_read_op    += my_tree->try_read_op[i][0];
+      total_read_ho    += my_tree->read_handover_num[i][0];
+      total_lock_fail  += my_tree->lock_fail[i][0];
+    }
+    double write_ho_rate = total_write_op > 0
+                           ? static_cast<double>(total_write_ho) / total_write_op : 0.0;
+    double read_ho_rate  = total_read_op > 0
+                           ? static_cast<double>(total_read_ho)  / total_read_op  : 0.0;
+    double lock_fail_rate = total_write_op > 0
+                            ? static_cast<double>(total_lock_fail) / total_write_op : 0.0;
+    std::cout << "Write handover rate = " << write_ho_rate << std::endl;
+    std::cout << "Read handover rate = "  << read_ho_rate  << std::endl;
+    std::cout << "Lock fail rate = "      << lock_fail_rate << std::endl;
+  }
+
   void clear_statistic() { my_tree->clear_debug_info(); }
 
   smart::Tree *my_tree;
