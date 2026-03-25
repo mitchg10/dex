@@ -17,6 +17,11 @@ AbstractMessageConnection::AbstractMessageConnection(
   messagePool = hugePageAlloc(2 * messageNR * MESSAGE_SIZE);
   messageMR = createMemoryRegion((uint64_t)messagePool,
                                  2 * messageNR * MESSAGE_SIZE, &ctx);
+  if (!messageMR) {
+    fprintf(stderr,
+            "[AbstractMessageConnection] ibv_reg_mr for message pool failed\n");
+    exit(1);
+  }
   sendPool = (char *)messagePool + messageNR * MESSAGE_SIZE;
   messageLkey = messageMR->lkey;
 }

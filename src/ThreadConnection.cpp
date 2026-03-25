@@ -17,6 +17,12 @@ ThreadConnection::ThreadConnection(uint16_t threadID, void *cachePool,
 
   this->cachePool = cachePool;
   cacheMR = createMemoryRegion((uint64_t)cachePool, cacheSize, &ctx);
+  if (!cacheMR) {
+    fprintf(stderr,
+            "[ThreadConnection %d] ibv_reg_mr for cache (%lu GB) failed\n",
+            threadID, cacheSize / (1024ULL * 1024 * 1024));
+    exit(1);
+  }
   cacheLKey = cacheMR->lkey;
 
   // dir, RC

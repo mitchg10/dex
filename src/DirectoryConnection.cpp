@@ -7,7 +7,10 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
                                          RemoteConnection *remoteInfo)
     : dirID(dirID), remoteInfo(remoteInfo) {
 
-  createContext(&ctx);
+  if (!createContext(&ctx)) {
+    fprintf(stderr, "[DirectoryConnection %d] createContext failed — RDMA device unavailable or in bad state\n", dirID);
+    exit(1);
+  }
   cq = ibv_create_cq(ctx.ctx, RAW_RECV_CQ_COUNT, NULL, NULL, 0);
   message = new RawMessageConnection(ctx, cq, DIR_MESSAGE_NR);
 
@@ -18,6 +21,13 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
   this->dsmPool = dsmPool;
   this->dsmSize = dsmSize;
   this->dsmMR = createMemoryRegion((uint64_t)dsmPool, dsmSize, &ctx);
+  if (!this->dsmMR) {
+    fprintf(stderr,
+            "[DirectoryConnection %d] ibv_reg_mr for DSM (%lu GB) failed"
+            " — check ulimit -l and RDMA device state\n",
+            dirID, dsmSize / (1024ULL * 1024 * 1024));
+    exit(1);
+  }
   this->dsmLKey = dsmMR->lkey;
 
   // on-chip lock memory
@@ -26,6 +36,13 @@ DirectoryConnection::DirectoryConnection(uint16_t dirID, void *dsmPool,
     this->lockSize = define::kLockChipMemSize;
     this->lockMR = createMemoryRegionOnChip((uint64_t)this->lockPool,
                                             this->lockSize, &ctx);
+    if (!this->lockMR) {
+      fprintf(stderr,
+              "[DirectoryConnection %d] ibv_alloc_dm / ibv_reg_dm_mr for lock"
+              " pool failed — NIC device memory unavailable\n",
+              dirID);
+      exit(1);
+    }
     this->lockLKey = lockMR->lkey;
     // this->lockPool = (void *)hugePageAlloc(define::kLockChipMemSize);
     // this->lockSize = define::kLockChipMemSize;
