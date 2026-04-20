@@ -61,7 +61,7 @@ public:
 
   BTree(DSM *dsm, uint64_t tree_id, uint64_t cache_mb, double sample_rate,
         double admission_rate, int cache_mode = 2)
-      : cache(cache_mb * 1024 * 1024 / pageSize, 0.1, sample_rate,
+      : cache(cache_mb * 1024 * 1024 / pageSize, 0.5, sample_rate,
               admission_rate, &root, cache_mode) {
     std::cout << "start generating tree" << std::endl;
     super_root_ = new BTreeInner<Key>(255, GlobalAddress::Null());
@@ -88,7 +88,7 @@ public:
   BTree(DSM *dsm, uint64_t tree_id, uint64_t cache_mb, double sample_rate,
         double admission_rate, std::vector<Key> partition_info,
         int num_partitions, int cache_mode = 2)
-      : cache(cache_mb * 1024 * 1024 / pageSize, 0.1, sample_rate,
+      : cache(cache_mb * 1024 * 1024 / pageSize, 0.5, sample_rate,
               admission_rate, &root, cache_mode) {
     std::cout << "start generating tree" << std::endl;
     super_root_ = new BTreeInner<Key>(255, GlobalAddress::Null());
