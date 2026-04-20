@@ -81,6 +81,7 @@ int early_stop = 1;
 bool partitioned = false;
 double rpc_rate = 0;
 double admission_rate = 1;
+int cache_mode = 2;
 struct zipf_gen_state state;
 int uniform_workload = 0;
 uniform_key_generator_t *uniform_generator = nullptr;
@@ -359,7 +360,7 @@ void thread_run(int id) {
 }
 
 void parse_args(int argc, char *argv[]) {
-  if (argc != 23) {
+  if (argc != 24) {
     printf("argc = %d\n", argc);
     printf("Usage: ./benchmark kNodeCount kReadRatio kInsertRatio kUpdateRatio "
            "kDeleteRatio kRangeRatio "
@@ -407,7 +408,8 @@ void parse_args(int argc, char *argv[]) {
   admission_rate = atof(argv[20]); // Admission control ratio for DEX
   auto_tune = atoi(argv[21]); // Whether needs the parameter tuning phase: run
                               // multiple times for a single operation
-
+  cache_mode = atoi(argv[23]); // 0=baseline, 1=cooling-map, 2=full DEX
+  
   kMaxThread = atoi(argv[22]);
   // How to make insert ready?
   kKeySpace = bulk_load_num +
@@ -477,7 +479,8 @@ void generate_index() {
               << ", right bound = " << sharding[cluster_num] << std::endl;
     assert(sharding.size() == cluster_num + 1);
     tree = new cachepush::BTree<Key, Value>(
-        dsm, 0, cache_mb, rpc_rate, admission_rate, sharding, cluster_num);
+        dsm, 0, cache_mb, rpc_rate, admission_rate, sharding, cluster_num, cache_mode);
+    std::cout << "Cache Mode: " << cache_mode << std::endl;
     partitioned = true;
   } break;
 
