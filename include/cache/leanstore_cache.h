@@ -7,6 +7,7 @@
 #include <list>
 #include <random>
 #include <set>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -72,11 +73,17 @@ public:
   double rpc_rate_; // the ratio for pushdown
   double admission_rate_;
 
+  bool use_cooling_map_;
+  std::mutex baseline_evict_mutex_;
+
   // static thread_local LatencyCollector decision;
   //   static thread_local LatencyCollector decision(100);
 
   CacheManager(uint64_t cache_capacity, double cooling_ratio, double rpc_rate,
-               double admission_rate, GlobalAddress *root_ptr = nullptr) {
+               double admission_rate, GlobalAddress *root_ptr = nullptr,
+                int cache_mode = 2) {
+    use_cooling_map_ = (cache_mode >= 1);
+    if (cache_mode < 2) admission_rate = 1.0; // no leaf admission
     rpc_rate_ = std::max<double>(0, std::min<double>(rpc_rate, 0.99));
     std::cout << "Pushdown (RPC) Rate: " << rpc_rate_ << std::endl;
     admission_rate_ = admission_rate;
@@ -277,13 +284,22 @@ public:
           page = get_local_page_set();
           break;
         } else {
-          // Evict from the cooling table
-          int ret = hash_table_->random_evict_to_remote(&page, probing_length);
-          if (ret == -1) {
-            // cache_allocator::BumpCurrentEpoch();
-            sample_multiple_pages(num_pages_to_sample);
+          int ret;
+          if (use_cooling_map_) {
+            // Evict from the cooling table
+            ret = hash_table_->random_evict_to_remote(&page, probing_length);
+            if (ret == -1) {
+              // cache_allocator::BumpCurrentEpoch();
+              sample_multiple_pages(num_pages_to_sample);
+            }
+          } else {
+            // Baseline: serialize all evictions 
+            std::lock_guard<std::mutex> guard(baseline_evict_mutex_);
+            ret = hash_table_->random_evict_to_remote(&page, probing_length);
+            if (ret == -1) {
+              sample_multiple_pages(num_pages_to_sample);
+            }
           }
-
           if (page == nullptr && (!local_page_set.empty())) {
             page = get_local_page_set();
             assert(page != nullptr);
