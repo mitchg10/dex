@@ -897,7 +897,7 @@ int main(int argc, char *argv[]) {
       // System::profile("dex-test", [&]() {
       int iter = 0;
       while (true) {
-        sleep(2);
+        sleep(1);
         clock_gettime(CLOCK_REALTIME, &e);
         int microseconds = (e.tv_sec - s.tv_sec) * 1000000 +
                            (double)(e.tv_nsec - s.tv_nsec) / 1000;
@@ -944,15 +944,16 @@ int main(int argc, char *argv[]) {
             start_generate_throughput = true;
           }
 
-          // Means this Cnode already finish the workload
-          if (start_generate_throughput && cluster_tp == 0) {
-            auto end = std::chrono::high_resolution_clock::now();
-            auto duration =
-                std::chrono::duration_cast<std::chrono::seconds>(end - start)
+          {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::seconds>(now - start)
                     .count();
-            std::cout << "The time duration = " << duration << " seconds"
-                      << std::endl;
-            break;
+            if (start_generate_throughput && elapsed >= 6) {
+              std::cout << "The time duration = " << elapsed << " seconds"
+                        << std::endl;
+              break;
+            }
           }
 
           if (start_generate_throughput) {
@@ -980,8 +981,15 @@ int main(int argc, char *argv[]) {
             start_generate_throughput = true;
           }
 
-          if (start_generate_throughput && per_node_tp == 0)
-            break;
+          {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::seconds>(now - start)
+                    .count();
+            if (start_generate_throughput && elapsed >= 6) {
+              break;
+            }
+          }
 
           if (start_generate_throughput) {
             ++collect_times;
