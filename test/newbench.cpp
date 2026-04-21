@@ -952,6 +952,7 @@ int main(int argc, char *argv[]) {
             if (start_generate_throughput && elapsed >= 6) {
               std::cout << "The time duration = " << elapsed << " seconds"
                         << std::endl;
+              thread_op_num = 0;
               break;
             }
           }
@@ -987,6 +988,7 @@ int main(int argc, char *argv[]) {
                 std::chrono::duration_cast<std::chrono::seconds>(now - start)
                     .count();
             if (start_generate_throughput && elapsed >= 6) {
+              thread_op_num = 0;
               break;
             }
           }
