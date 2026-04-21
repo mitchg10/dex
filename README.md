@@ -1,5 +1,9 @@
 # DEX: Scalable Range Indexing on Disaggregated Memory
 
+## Forked
+
+This is a forked version of the repository that I maintain control over. Any changes required to dex can be made. 
+
 ## What's included
 
 - DEX - Proposed distributed B+-Tree on disaggregated memory
