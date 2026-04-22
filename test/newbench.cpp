@@ -827,6 +827,7 @@ int main(int argc, char *argv[]) {
     dsm->resetThread();
     generate_workload();
     bulk_load();
+    std::cout << "Bulk load complete on node " << node_id << std::endl;
 
     if (auto_tune) {
       run_times = admission_rate_vec.size() * rpc_rate_vec.size();
